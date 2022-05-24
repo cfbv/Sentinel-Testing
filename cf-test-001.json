@@ -1,0 +1,72 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/cb46bf97-9bfd-4fc2-934b-8a60de930a0a')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/cb46bf97-9bfd-4fc2-934b-8a60de930a0a')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "CF-Test-001: [RBA] Azure AD - New Service Principal",
+                "description": "This alert identifies successful creation of SPN (service principal names). This is one of the recommended detections from CISA (https://us-cert.cisa.gov/ncas/alerts/aa21-008a). MITRE: T1098,T1136,T1078 Category: Azure AD tag: Non-MDR tag: RBA",
+                "severity": "Informational",
+                "enabled": true,
+                "query": "AuditLogs\n| where TimeGenerated > ago(1h)\n| where OperationName == 'Add service principal'\n| where Result == 'success'\n| extend InitiatedBy = tostring(parse_json(tostring(InitiatedBy.user)).userPrincipalName)\n| extend SPNId = tostring(TargetResources[0].id)\n| extend SPNDisplayName = tostring(TargetResources[0].displayName)\n| extend Agent = tostring(AdditionalDetails[0].value)\n| where SPNDisplayName !in~ (WHITELISTED_SERVICE_PRINCIPALS)\n| project TimeGenerated,InitiatedBy,SPNDisplayName, SPNId, Result, Agent\n| extend AccountCustomEntity = InitiatedBy",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT6H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "Persistence",
+                    "InitialAccess",
+                    "PrivilegeEscalation",
+                    "DefenseEvasion"
+                ],
+                "techniques": [
+                    "T1098",
+                    "T1136",
+                    "T1078"
+                ],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": false,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT1H",
+                        "matchingMethod": "Selected",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "AlertPerResult"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "AccountCustomEntity"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}
