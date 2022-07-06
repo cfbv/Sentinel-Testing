@@ -38,7 +38,7 @@
           {
             "type": 1,
             "content": {
-              "json": "Select an Alert to view more information on entity information and occurance. \r\n\r\n- Avg Per Day: Average per 24 hours taken over a 168 hour (7 day) period\r\n- Previous average: average per 24 hours taken in the previous 7 day period (7-14 days ago)\r\n- Alert Count: Total alert count, this does not represent incident count\r\n",
+              "json": "0001 Select an Alert to view more information on entity information and occurance. \r\n\r\n- Avg Per Day: Average per 24 hours taken over a 168 hour (7 day) period\r\n- Previous average: average per 24 hours taken in the previous 7 day period (7-14 days ago)\r\n- Alert Count: Total alert count, this does not represent incident count\r\n",
               "style": "info"
             },
             "conditionalVisibility": {
