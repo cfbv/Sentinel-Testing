@@ -1,0 +1,86 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/97631246-3a29-42a9-b692-4bfb12a00f2e')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/97631246-3a29-42a9-b692-4bfb12a00f2e')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "CF-test-002",
+                "description": "Adversaries may attempt to dump credentials to obtain account login and credential material, normally in the form of a hash or a clear text password, from the operating system and software. Credentials can then be used to perform Lateral Movement and access restricted information.\n\nSeveral of the tools mentioned in associated sub-techniques may be used by both adversaries and professional security testers. Additional custom tools likely exist as well.\n\nThis rule identifies the use of Comsvcs.dll to dump credentials\n\nInclusions: None \nExclusions: None \n\nConsiderations: \n1. Review additional actvity on for the user including login events\n2. Review additional activity on the host MITRE: T1003 Category: Windows Security tag: SOC tag: Zero-Day",
+                "severity": "High",
+                "enabled": true,
+                "query": "let start_time = 10m;\nlet latency = 60m;\nlet end_time = now();\nlet alert_bin = 10m;\nSecurityEvent\n| where TimeGenerated between ( ago(start_time + latency) .. now() ) and ingestion_time() > ago(start_time)\n| where EventID == 4688\n| where CommandLine has 'comsvcs.dll' and CommandLine has 'MiniDump'\n| parse Account with UserDomain '\\\\' UserName\n| parse Computer with ComputerName @'.' ComputerDomain\n| extend ExtendedDescription = strcat('The user ', Account, ' ran minidump on ', Computer) \n| project TimeGenerated, Account, Computer, CommandLine, ParentProcessName, UserDomain, UserName, ComputerName, ComputerDomain, ExtendedDescription",
+                "queryFrequency": "PT10M",
+                "queryPeriod": "PT1H10M",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT6H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "CredentialAccess"
+                ],
+                "techniques": [
+                    "T1003"
+                ],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5M",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDescriptionFormat": "Adversaries may attempt to dump credentials to obtain account login and credential material, normally in the form of a hash or a clear text password, from the operating system and software. Credentials can then be used to perform Lateral Movement and access restricted information.\n\nSeveral of the tools mentioned in associated sub-techniques may be used by both adversaries and professional security testers. Additional custom tools likely exist as well.\n\nThis rule identifies the use of Comsvcs.dll to dump credentials\n\n{{ExtendedDescription}}\n\nInclusions: None \nExclusions: None \n\nConsiderations: \n1. Review additional actvity on for the user including login events\n2. REview additional activity on the host\n\nMITRE: T1003 \nCategory: Windows Security\ntag: SOC"
+                },
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "UserName"
+                            },
+                            {
+                                "identifier": "NTDomain",
+                                "columnName": "UserDomain"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "HostName",
+                                "columnName": "ComputerName"
+                            },
+                            {
+                                "identifier": "DnsDomain",
+                                "columnName": "ComputerDomain"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}
