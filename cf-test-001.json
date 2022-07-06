@@ -15,7 +15,7 @@
             "apiVersion": "2021-10-01-preview",
             "properties": {
                 "displayName": "CF-Test-001: [RBA] Azure AD - New Service Principal",
-                "description": "This alert identifies successful creation of SPN (service principal names). This is one of the recommended detections from CISA (https://us-cert.cisa.gov/ncas/alerts/aa21-008a). MITRE: T1098,T1136,T1078 Category: Azure AD tag: Non-MDR tag: RBA",
+                "description": "This alert identifies successful creation of SPN (service principal names). This is one of the recommended detections from CISA (https://us-cert.cisa.gov/ncas/alerts/aa21-008a). MITRE: T1098,T1136,T1078 Category: Azure AD tag: Non-MDR tag: RBA, update 6/20/22",
                 "severity": "Informational",
                 "enabled": true,
                 "query": "AuditLogs\n| where TimeGenerated > ago(1h)\n| where OperationName == 'Add service principal'\n| where Result == 'success'\n| extend InitiatedBy = tostring(parse_json(tostring(InitiatedBy.user)).userPrincipalName)\n| extend SPNId = tostring(TargetResources[0].id)\n| extend SPNDisplayName = tostring(TargetResources[0].displayName)\n| extend Agent = tostring(AdditionalDetails[0].value)\n| where SPNDisplayName !in~ (WHITELISTED_SERVICE_PRINCIPALS)\n| project TimeGenerated,InitiatedBy,SPNDisplayName, SPNId, Result, Agent\n| extend AccountCustomEntity = InitiatedBy",
