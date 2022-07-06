@@ -1,4 +1,5 @@
 FileName, CommitSha
-CF-Test-002.json,cfc06612e8bee16541e6ecc086cb386df3d77c35
 cf-test-001.json,e8be5c0de2dbd870b4018abbcdd4828b8df2c9a4
 Playbooks\Confirm-AADRiskyUser.json,b4abebe237f3039c59a6ca6f7506943b382210d3
+Workbooks\TuningInsights.json,edb43c7262d649a70173bf3f864e7befbdb4fbcd
+CF-Test-002.json,cfc06612e8bee16541e6ecc086cb386df3d77c35
