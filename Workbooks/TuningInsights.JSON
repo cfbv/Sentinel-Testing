@@ -1,0 +1,1177 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 11,
+      "content": {
+        "version": "LinkItem/1.0",
+        "style": "toolbar",
+        "links": [
+          {
+            "id": "c74d1d9e-72f9-4e1a-b499-c9b3242a4bd5",
+            "cellValue": "EnableHelp",
+            "linkTarget": "parameter",
+            "linkLabel": "Enable Help",
+            "subTarget": "Enabled",
+            "style": "link",
+            "icon": "Help"
+          },
+          {
+            "id": "9fbffc9f-bc86-4078-9520-3abc663157ac",
+            "cellValue": "EnableHelp",
+            "linkTarget": "parameter",
+            "linkLabel": "Disable Help",
+            "subTarget": "Disabled",
+            "style": "link"
+          }
+        ]
+      },
+      "name": "links - 6"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "title": "Alert View",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "Select an Alert to view more information on entity information and occurance. \r\n\r\n- Avg Per Day: Average per 24 hours taken over a 168 hour (7 day) period\r\n- Previous average: average per 24 hours taken in the previous 7 day period (7-14 days ago)\r\n- Alert Count: Total alert count, this does not represent incident count\r\n",
+              "style": "info"
+            },
+            "conditionalVisibility": {
+              "parameterName": "EnableHelp",
+              "comparison": "isEqualTo",
+              "value": "Enabled"
+            },
+            "name": "text - 5"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let previousInterval = 14d;\nlet timeInterval = 7d;\nlet SparkLine = SecurityIncident\n| where TimeGenerated > ago (previousInterval)\n//| where Status == 'New'\n| extend AlertSource = tostring(parse_json(tostring(AdditionalData.alertProductNames))[0])\n| where AlertSource == 'Azure Sentinel'\n| extend RuleID = tostring(RelatedAnalyticRuleIds[0])\n| make-series Trend = count() default = 0 on TimeGenerated from ago(previousInterval) to now() step 1d by Title, AlertSource, Severity, RuleID\n| project Title, AlertSource, Severity, RuleID, Trend;\nlet PreviousWeekSecurityIncident = SecurityIncident\n| where TimeGenerated <= ago(timeInterval) and TimeGenerated > ago (previousInterval)\n| extend AlertSource = tostring(parse_json(tostring(AdditionalData.alertProductNames))[0])\n| where AlertSource == 'Azure Sentinel'\n| extend RuleID = tostring(RelatedAnalyticRuleIds[0])\n| summarize PreviousCount=dcount(IncidentNumber, 4) by Title, AlertSource, Severity, RuleID\n| extend PreviousAvgPerDay = round(PreviousCount / (timeInterval / 1d), 2)\n| project Title, AlertSource, Severity, RuleID, PreviousAvgPerDay, PreviousCount;\nSecurityIncident\n| where TimeGenerated > ago(timeInterval)\n//| where Status == 'New'\n| extend AlertSource = tostring(parse_json(tostring(AdditionalData.alertProductNames))[0])\n| where AlertSource == 'Azure Sentinel'\n| extend RuleID = tostring(RelatedAnalyticRuleIds[0])\n| summarize\n    Count=dcount(IncidentNumber, 4),\n    SampleDescription=max(Description),\n    First=min(TimeGenerated),\n    Last=max(TimeGenerated),\n    ListOfIncidents=makeset(IncidentNumber),\n    ['Status: Open'] = countif(Status in ('New', 'Open')),\n    ['Status: Closed'] = countif(Status == 'Closed'),\n    ['True Positive'] = countif(Classification == 'TruePositive'),\n    ['False Positive'] = countif(Classification == 'FalsePositive'),\n    ['Benign Positive'] = countif(Classification == 'BenignPositive'), \n    ['Undetermined'] = countif(Classification in ('', 'Undetermined'))\n    by Title, AlertSource, Severity, RuleID\n| join kind=leftouter PreviousWeekSecurityIncident on Title, AlertSource, Severity, RuleID\n| join kind=leftouter SparkLine on Title, AlertSource, Severity, RuleID\n| extend AvgPerDay = round(Count / (timeInterval / 1d), 2)\n| extend PreviousCount = iif(isempty(PreviousCount), 0, PreviousCount), PreviousAvgPerDay = iif(isempty(PreviousAvgPerDay), 0.0, PreviousAvgPerDay)\n| extend TimeFromNow = now() - Last\n| extend [\"Time Since\"] = strcat(case(TimeFromNow < 2m, strcat(toint(TimeFromNow / 1m), ' seconds'), TimeFromNow < 2h, strcat(toint(TimeFromNow / 1m), ' minutes'), TimeFromNow < 2d, strcat(toint(TimeFromNow / 1h), ' hours'), strcat(toint(TimeFromNow / 1d), ' days')), ' ago')\n| sort by Count desc\n| project\n    Title,\n    Severity,\n    AlertSource,\n    First,\n    Last,\n    [\"Time Since\"],\n    AvgPerDay,\n    PreviousAvgPerDay,\n    Count,\n    PreviousCount,\n    Trend,\n    ListOfIncidents,\n    RuleID,\n    ['Status: Open'],\n    ['Status: Closed'],\n    ['True Positive'],\n    ['False Positive'],\n    ['Benign Positive'],\n    Undetermined,\n    SampleDescription",
+              "size": 0,
+              "showAnalytics": true,
+              "title": "Top Alerts Over 7 Days",
+              "exportedParameters": [
+                {
+                  "fieldName": "RuleID",
+                  "parameterName": "RuleID",
+                  "parameterType": 1
+                },
+                {
+                  "fieldName": "Title",
+                  "parameterName": "Title",
+                  "parameterType": 1
+                }
+              ],
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Severity",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "icons",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Medium",
+                          "representation": "Sev2",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Informational",
+                          "representation": "Sev4",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Low",
+                          "representation": "Sev3",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "High",
+                          "representation": "Sev1",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "success",
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "AlertSource",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "Time Since",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "blue"
+                    }
+                  },
+                  {
+                    "columnMatch": "AvgPerDay",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "turquoise"
+                    }
+                  },
+                  {
+                    "columnMatch": "Count",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "turquoise"
+                    }
+                  },
+                  {
+                    "columnMatch": "Trend",
+                    "formatter": 9,
+                    "formatOptions": {
+                      "palette": "turquoise"
+                    }
+                  },
+                  {
+                    "columnMatch": "ListOfIncidents",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "RuleID",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "Status: Open",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "red"
+                    }
+                  },
+                  {
+                    "columnMatch": "Status: Closed",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "blue"
+                    }
+                  },
+                  {
+                    "columnMatch": "True Positive",
+                    "formatter": 5,
+                    "numberFormat": {
+                      "unit": 17,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "False Positive",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "Benign Positive",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "Undetermined",
+                    "formatter": 5,
+                    "numberFormat": {
+                      "unit": 17,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "TimeFromNow",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 26,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    }
+                  }
+                ],
+                "filter": true,
+                "sortBy": [
+                  {
+                    "itemKey": "Last",
+                    "sortOrder": 2
+                  }
+                ],
+                "labelSettings": [
+                  {
+                    "columnId": "AvgPerDay",
+                    "label": "Avg Per Day"
+                  },
+                  {
+                    "columnId": "PreviousAvgPerDay",
+                    "label": "Previous Avg"
+                  },
+                  {
+                    "columnId": "Count",
+                    "label": "Alert Count"
+                  },
+                  {
+                    "columnId": "PreviousCount",
+                    "label": "Previous Count"
+                  }
+                ]
+              },
+              "sortBy": [
+                {
+                  "itemKey": "Last",
+                  "sortOrder": 2
+                }
+              ]
+            },
+            "name": "query - 2",
+            "styleSettings": {
+              "showBorder": true
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let timeInterval = 7d;\r\nlet rules = SecurityIncident\r\n    | where TimeGenerated > ago(timeInterval)\r\n    //| where Status == 'New'\r\n    | extend AlertSource = tostring(parse_json(tostring(AdditionalData.alertProductNames))[0])\r\n    | where AlertSource == 'Azure Sentinel'\r\n    | extend RuleID = tostring(RelatedAnalyticRuleIds[0])\r\n    | where RuleID == '{RuleID}';\r\nlet total = rules\r\n    | summarize Count = count()\r\n    | extend Description = 'Total Count', sortcolumn = 1;\r\nlet open = rules\r\n    | summarize\r\n        Count = countif(Status in ('New', 'Open'))\r\n    | extend Description = 'Status: Open', sortcolumn = 2;\r\nlet closed = rules \r\n    | summarize Count = countif(Status == 'Closed')\r\n    | extend Description = 'Status: Closed', sortcolumn = 3;\r\nlet truepositive = rules\r\n    | summarize Count = countif(Classification == 'TruePositive')\r\n    | extend Description = 'True Positive', sortcolumn = 4;\r\nlet FalsePositive = rules\r\n    | summarize Count = countif(Classification == 'FalsePositive')\r\n    | extend Description = 'False Positive', sortcolumn = 6;\r\nlet BenignPositive = rules\r\n    | summarize Count = countif(Classification == 'BenignPositive')\r\n    | extend Description = 'Benign Positive', sortcolumn = 5; \r\nlet Undetermined = rules\r\n    | summarize Count = countif(Classification in ('', 'Undetermined'))\r\n    | extend Description = 'Undetermined', sortcolumn = 7;\r\nunion total, open, closed, truepositive, BenignPositive, FalsePositive, Undetermined\r\n| sort by sortcolumn asc \r\n| project Description, Count",
+              "size": 4,
+              "title": "Statistics for {Title}",
+              "timeContext": {
+                "durationMs": 604800000
+              },
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "Description",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "Count",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "auto"
+                  },
+                  "numberFormat": {
+                    "unit": 17,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 2,
+                      "maximumSignificantDigits": 3
+                    }
+                  }
+                },
+                "rightContent": {
+                  "columnMatch": "True Positive"
+                },
+                "secondaryContent": {
+                  "columnMatch": "Undetermined"
+                },
+                "showBorder": true
+              }
+            },
+            "name": "query - 3"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "Select an entity to see more infomation. \r\n\r\nIf no Entities are projected, it may be because the alert is not selected or the alert does not have any entity types mapped. ",
+              "style": "info"
+            },
+            "conditionalVisibilities": [
+              {
+                "parameterName": "EnableHelp",
+                "comparison": "isEqualTo",
+                "value": "Enabled"
+              },
+              {
+                "parameterName": "RuleID",
+                "comparison": "isNotEqualTo"
+              }
+            ],
+            "name": "text - 6"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let getEntityName = (Entity: dynamic) { \r\n    // For each entity type we define the guid to be the identifying field and the names is an array of the names matched for that same identifier\r\n    case(\r\n    tostring(Entity.Type) == 'host', pack('guid', tostring(Entity.HostName), 'names', pack_array(tostring(Entity.HostName))),\r\n    tostring(Entity.Type) == 'ip', pack('guid', tostring(Entity.Address), 'names', pack_array(tostring(Entity.Address))),\r\n    tostring(Entity.Type) == 'url', pack('guid', tostring(Entity.Url), 'names', pack_array(tostring(Entity.Url))),\r\n    tostring(Entity.Type) == 'filehash', pack('guid', tostring(Entity.Value), 'names', pack_array(tostring(Entity.Value))),\r\n    tostring(Entity.Type) == 'dns', pack('guid', tostring(Entity.DomainName), 'names', pack_array(tostring(Entity.DomainName))),\r\n    tostring(Entity.Type) == 'azure-resource', pack('guid', tostring(Entity.ResourceId), 'names', pack_array(tostring(Entity.ResourceId))),\r\n    tostring(Entity.Type) == 'mailCluster', pack('guid', tostring(Entity.Source), 'names', pack_array(tostring(Entity.Source))),\r\n    tostring(Entity.Type) == 'mailMessage', pack('guid', tostring(Entity.NetworkMessageId), 'names', pack_array(tostring(Entity.NetworkMessageId))),\r\n    tostring(Entity.Type) == 'mailbox', pack('guid', tostring(Entity.MailboxPrimaryAddress), 'names', pack_array(tostring(Entity.MailboxPrimaryAddress))),\r\n    tostring(Entity.Type) == 'registry-key', pack('guid', tostring(Entity.Key), 'names', pack_array(tostring(Entity.Key))),\r\n    tostring(Entity.Type) == 'registry-value', pack('guid', tostring(Entity.Value), 'names', pack_array(tostring(Entity.Value))),\r\n    tostring(Entity.Type) == 'security-group', pack('guid', tostring(Entity.SID), 'names', pack_array(tostring(Entity.SID))),\r\n    tostring(Entity.Type) == 'account', pack('guid', tostring(Entity.Name), 'names', pack_array(tostring(Entity.Name), tostring(Entity.AadUserId))), \r\n    tostring(Entity.Type) == 'file', pack('guid', tostring(Entity.Name), 'names', pack_array(tostring(Entity.Name))),\r\n    tostring(Entity.Type) == 'malware', pack('guid', tostring(Entity.Name), 'names', pack_array(tostring(Entity.Name))),\r\n    tostring(Entity.Type) == 'process', pack('guid', tostring(Entity.ProcessId), 'names', pack_array(tostring(Entity.ProcessId))),\r\n    tostring(Entity.Type) == 'cloud-application', pack('guid', tostring(Entity.AppId), 'names', pack_array(tostring(Entity.AppId))),\r\n    tostring(Entity.Type) == 'SubmissionMail', pack('guid', tostring(Entity.SubmissionId), 'names', pack_array(tostring(Entity.SubmissionId))),\r\n    // Default case match (if no entity type matched)\r\n    pack('guid', tostring(Entity.Name), 'names', pack_array(tostring(Entity.Name)))) \r\n};\r\nlet entityStats = materialize(SecurityAlert\r\n    | where ProductName == \"Azure Sentinel\"\r\n    | where ProviderName == \"ASI Scheduled Alerts\"\r\n    | extend RelatedAnalyticRuleId = tostring(todynamic(ExtendedProperties)[\"Analytic Rule Ids\"])\r\n    | extend RelatedAnalyticRuleId = tostring(todynamic(RelatedAnalyticRuleId)[0])\r\n    | where RelatedAnalyticRuleId == \"{RuleID}\"\r\n    | project SystemAlertId, todynamic(Entities), ProviderName, RelatedAnalyticRuleId\r\n    | mv-expand Entities\r\n    | project-rename Entity = Entities\r\n    | extend Name = getEntityName(Entity), Type = tostring(Entity.Type)\r\n    | extend entityId = tostring(Name.guid), Name = Name.names\r\n    | mv-expand Name to typeof(string)\r\n    | where isnotempty(Name) and isnotempty(entityId)\r\n    | distinct entityId, Type, SystemAlertId, RelatedAnalyticRuleId);\r\nlet alertCount = entityStats\r\n    | distinct SystemAlertId\r\n    | count;\r\nlet totalAlerts = toscalar(alertCount);\r\nentityStats\r\n| summarize entityAppearanceCount = count() by entityId, Type, RelatedAnalyticRuleId\r\n| extend\r\n    entityAppearancePercentage = round(todouble(entityAppearanceCount) / totalAlerts * 100, 0),\r\n    totalAlerts\r\n| extend IPType = iff(ipv4_is_private(entityId), 'Private', 'Public' )\r\n| project ruleId = RelatedAnalyticRuleId, \r\n    // entity identification\r\n    entityIdentifier = tolower(entityId), \r\n    entityType = Type,\r\n    // entity appearance statistics\r\n    entityAppearancePercentage, \r\n    entityAppearanceCount, \r\n    totalAlerts,\r\n    IPType\r\n| sort by entityAppearancePercentage desc",
+              "size": 0,
+              "showAnalytics": true,
+              "title": "Entity Insights for {Title}",
+              "noDataMessage": "No Entities Detected",
+              "timeContext": {
+                "durationMs": 604800000
+              },
+              "exportedParameters": [
+                {
+                  "fieldName": "entityIdentifier",
+                  "parameterName": "entityIdentifier"
+                },
+                {
+                  "fieldName": "entityType",
+                  "parameterName": "entityType",
+                  "parameterType": 1
+                },
+                {
+                  "fieldName": "IPType",
+                  "parameterName": "IPType",
+                  "parameterType": 1
+                }
+              ],
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "ruleId",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "entityIdentifier",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "{entityIdentifier}",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "entityAppearancePercentage",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "turquoise"
+                    },
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "entityAppearanceCount",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "turquoise"
+                    }
+                  },
+                  {
+                    "columnMatch": "totalAlerts",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "IPType",
+                    "formatter": 5
+                  }
+                ],
+                "labelSettings": [
+                  {
+                    "columnId": "entityIdentifier",
+                    "label": "Entity"
+                  },
+                  {
+                    "columnId": "entityType",
+                    "label": "Entity Type"
+                  },
+                  {
+                    "columnId": "entityAppearancePercentage",
+                    "label": "Appearance Percentage"
+                  },
+                  {
+                    "columnId": "entityAppearanceCount",
+                    "label": "Appearance Count"
+                  },
+                  {
+                    "columnId": "totalAlerts",
+                    "label": "Total Alerts"
+                  }
+                ]
+              },
+              "sortBy": []
+            },
+            "customWidth": "40",
+            "name": "query - 1",
+            "styleSettings": {
+              "maxWidth": "40",
+              "showBorder": true
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let timeInterval = 7d;\r\nSecurityIncident\r\n| where TimeGenerated > ago(timeInterval)\r\n//| where Status == 'New'\r\n| extend AlertSource = tostring(parse_json(tostring(AdditionalData.alertProductNames))[0])\r\n| where AlertSource == 'Azure Sentinel'\r\n| extend RuleID = tostring(RelatedAnalyticRuleIds[0])\r\n| where RuleID == \"{RuleID}\"\r\n| make-series Alerts = count() on TimeGenerated from ago(7d) to now() step 1h",
+              "size": 0,
+              "title": "Time Chart for {Title}",
+              "timeContext": {
+                "durationMs": 604800000
+              },
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "timechart"
+            },
+            "customWidth": "60",
+            "name": "query - 2",
+            "styleSettings": {
+              "maxWidth": "60",
+              "showBorder": true
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let incidents = SecurityIncident\r\n| extend AlertSource = tostring(parse_json(tostring(AdditionalData.alertProductNames))[0])\r\n| where AlertSource == 'Azure Sentinel'\r\n| extend RuleID = tostring(RelatedAnalyticRuleIds[0])\r\n| where RuleID == '{RuleID}'\r\n| mv-expand AlertIds\r\n| extend SystemAlertId = tostring(AlertIds);\r\nlet getEntityName = (Entity: dynamic) { \r\n    // For each entity type we define the guid to be the identifying field and the names is an array of the names matched for that same identifier\r\n    case(\r\n    tostring(Entity.Type) == 'host', pack('guid', tostring(Entity.HostName), 'names', pack_array(tostring(Entity.HostName))),\r\n    tostring(Entity.Type) == 'ip', pack('guid', tostring(Entity.Address), 'names', pack_array(tostring(Entity.Address))),\r\n    tostring(Entity.Type) == 'url', pack('guid', tostring(Entity.Url), 'names', pack_array(tostring(Entity.Url))),\r\n    tostring(Entity.Type) == 'filehash', pack('guid', tostring(Entity.Value), 'names', pack_array(tostring(Entity.Value))),\r\n    tostring(Entity.Type) == 'dns', pack('guid', tostring(Entity.DomainName), 'names', pack_array(tostring(Entity.DomainName))),\r\n    tostring(Entity.Type) == 'azure-resource', pack('guid', tostring(Entity.ResourceId), 'names', pack_array(tostring(Entity.ResourceId))),\r\n    tostring(Entity.Type) == 'mailCluster', pack('guid', tostring(Entity.Source), 'names', pack_array(tostring(Entity.Source))),\r\n    tostring(Entity.Type) == 'mailMessage', pack('guid', tostring(Entity.NetworkMessageId), 'names', pack_array(tostring(Entity.NetworkMessageId))),\r\n    tostring(Entity.Type) == 'mailbox', pack('guid', tostring(Entity.MailboxPrimaryAddress), 'names', pack_array(tostring(Entity.MailboxPrimaryAddress))),\r\n    tostring(Entity.Type) == 'registry-key', pack('guid', tostring(Entity.Key), 'names', pack_array(tostring(Entity.Key))),\r\n    tostring(Entity.Type) == 'registry-value', pack('guid', tostring(Entity.Value), 'names', pack_array(tostring(Entity.Value))),\r\n    tostring(Entity.Type) == 'security-group', pack('guid', tostring(Entity.SID), 'names', pack_array(tostring(Entity.SID))),\r\n    tostring(Entity.Type) == 'account', pack('guid', tostring(Entity.Name), 'names', pack_array(tostring(Entity.Name), tostring(Entity.AadUserId))), \r\n    tostring(Entity.Type) == 'file', pack('guid', tostring(Entity.Name), 'names', pack_array(tostring(Entity.Name))),\r\n    tostring(Entity.Type) == 'malware', pack('guid', tostring(Entity.Name), 'names', pack_array(tostring(Entity.Name))),\r\n    tostring(Entity.Type) == 'process', pack('guid', tostring(Entity.ProcessId), 'names', pack_array(tostring(Entity.ProcessId))),\r\n    tostring(Entity.Type) == 'cloud-application', pack('guid', tostring(Entity.AppId), 'names', pack_array(tostring(Entity.AppId))),\r\n    tostring(Entity.Type) == 'SubmissionMail', pack('guid', tostring(Entity.SubmissionId), 'names', pack_array(tostring(Entity.SubmissionId))),\r\n    // Default case match (if no entity type matched)\r\n    pack('guid', tostring(Entity.Name), 'names', pack_array(tostring(Entity.Name)))) \r\n};\r\nlet entityStats = materialize(SecurityAlert\r\n    | where ProductName == \"Azure Sentinel\"\r\n    | where ProviderName == \"ASI Scheduled Alerts\"\r\n    | extend RelatedAnalyticRuleId = tostring(todynamic(ExtendedProperties)[\"Analytic Rule Ids\"])\r\n    | extend RelatedAnalyticRuleId = tostring(todynamic(RelatedAnalyticRuleId)[0])\r\n    //| where RelatedAnalyticRuleId == \"{RuleID}\"\r\n    | project SystemAlertId, todynamic(Entities), ProviderName, RelatedAnalyticRuleId\r\n    | mv-expand Entities\r\n    | project-rename Entity = Entities\r\n    | extend Name = getEntityName(Entity), Type = tostring(Entity.Type)\r\n    | extend entityId = tolower(tostring(Name.guid)), Name = Name.names\r\n    | mv-expand Name to typeof(string)\r\n    | where isnotempty(Name) and isnotempty(entityId)\r\n    | distinct entityId, Type, SystemAlertId, RelatedAnalyticRuleId);\r\nlet alertCount = entityStats\r\n    | distinct SystemAlertId\r\n    | count;\r\nlet totalAlerts = toscalar(alertCount);\r\nentityStats\r\n| join kind=inner incidents on SystemAlertId\r\n| where entityId == '{entityIdentifier}'\r\n| extend TimeFromNow = now() - TimeGenerated\r\n| extend [\"Time Since\"] = strcat(case(TimeFromNow < 2m, strcat(toint(TimeFromNow / 1m), ' seconds'), TimeFromNow < 2h, strcat(toint(TimeFromNow / 1m), ' minutes'), TimeFromNow < 2d, strcat(toint(TimeFromNow / 1h), ' hours'), strcat(toint(TimeFromNow / 1d), ' days')), ' ago')\r\n| project TimeGenerated, [\"Time Since\"], IncidentNumber, Title,  entityIdentifier = entityId, \r\n    entityType = Type, IncidentUrl, Status, Classification\r\n| sort by TimeGenerated desc \r\n",
+              "size": 1,
+              "showAnalytics": true,
+              "title": "Incident List for {Title} and Entity: {entityIdentifier}",
+              "noDataMessage": "No Incidents or Entities Detected",
+              "timeContext": {
+                "durationMs": 604800000
+              },
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "entityIdentifier",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "{entityIdentifier}",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "IncidentUrl",
+                    "formatter": 7,
+                    "formatOptions": {
+                      "linkTarget": "Url",
+                      "linkLabel": "Link to Incident Investigation"
+                    }
+                  },
+                  {
+                    "columnMatch": "TimeFromNow",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 27,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    }
+                  }
+                ],
+                "labelSettings": [
+                  {
+                    "columnId": "TimeGenerated",
+                    "label": "Time Generated"
+                  },
+                  {
+                    "columnId": "IncidentNumber",
+                    "label": "Incident Number"
+                  },
+                  {
+                    "columnId": "Title",
+                    "label": "Title"
+                  },
+                  {
+                    "columnId": "entityIdentifier",
+                    "label": "Entity"
+                  },
+                  {
+                    "columnId": "entityType",
+                    "label": "Entity Type"
+                  },
+                  {
+                    "columnId": "IncidentUrl",
+                    "label": "Incident URL"
+                  }
+                ]
+              }
+            },
+            "customWidth": "75",
+            "conditionalVisibility": {
+              "parameterName": "entityIdentifier",
+              "comparison": "isNotEqualTo"
+            },
+            "name": "query - 4",
+            "styleSettings": {
+              "maxWidth": "40",
+              "showBorder": true
+            }
+          }
+        ],
+        "exportParameters": true
+      },
+      "name": "Alert View"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "title": "Account Entity Information: {entityIdentifier}",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "Identity infomation requires Entity Behaviour Analytics to be enabled in the Azure Sentinel envrionment. Once enabled, entity info will sync from Azure AD every 21 days or when user accounts are updated. \r\n\r\n- Entity information will not load fully if it has been enabled within 21 days. \r\n- If an account does not exist in Azure AD the entity info will not be populated. \r\n- Assigned Groups will show on-premises assingments only if Azure AD Sync is enabled on the account\r\n- Assigned AAD roles = any priviledged roles within the Azure AD envrionment, this view may not show custom Azure permissions / roles. ",
+              "style": "info"
+            },
+            "conditionalVisibility": {
+              "parameterName": "EnableHelp",
+              "comparison": "isEqualTo",
+              "value": "Enabled"
+            },
+            "name": "text - 5"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "IdentityInfo\r\n| where AccountName startswith '{entityIdentifier}' or AccountUPN startswith '{entityIdentifier}' \r\n| top 1 by TimeGenerated desc \r\n| extend AccountName = tolower(AccountName)\r\n| extend AccountUPN = tolower(AccountUPN)\r\n| project AccountName, AccountUPN, AccountDisplayName, Department, JobTitle, Manager, UserType\r\n",
+              "size": 1,
+              "showAnalytics": true,
+              "title": "Identity Info for Account {entityIdentifier}",
+              "timeContext": {
+                "durationMs": 2592000000
+              },
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "AccountName",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "startsWith",
+                          "thresholdValue": "{entityIdentifier}",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "AccountUPN",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "startsWith",
+                          "thresholdValue": "{entityIdentifier}",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "tileSettings": {
+                "showBorder": false
+              }
+            },
+            "customWidth": "47",
+            "conditionalVisibility": {
+              "parameterName": "entityType",
+              "comparison": "isEqualTo",
+              "value": "account"
+            },
+            "name": "query - 7",
+            "styleSettings": {
+              "showBorder": true
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "IdentityInfo\r\n| where AccountName startswith '{entityIdentifier}' or AccountUPN startswith '{entityIdentifier}' \r\n| top 1 by TimeGenerated desc \r\n| project\r\n    AccountName,\r\n    AccountUPN,\r\n    AccountDisplayName,\r\n    GroupMembership,\r\n    AssignedRoles,\r\n    Department,\r\n    JobTitle,\r\n    Manager,\r\n    UserType,\r\n    SourceSystem\r\n| mv-expand GroupMembership\r\n| project tostring(GroupMembership)\r\n| sort by GroupMembership asc ",
+              "size": 1,
+              "showAnalytics": true,
+              "title": "Assigned Groups for User: {entityIdentifier}",
+              "noDataMessage": "No Assigned Groups Detected",
+              "timeContext": {
+                "durationMs": 2592000000
+              },
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "labelSettings": [
+                  {
+                    "columnId": "GroupMembership",
+                    "label": "Group Membership"
+                  }
+                ]
+              }
+            },
+            "customWidth": "17",
+            "name": "query - 8",
+            "styleSettings": {
+              "showBorder": true
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "IdentityInfo\r\n| where AccountName startswith '{entityIdentifier}' or AccountUPN startswith '{entityIdentifier}' \r\n| top 1 by TimeGenerated desc \r\n| project\r\n    AccountName,\r\n    AccountUPN,\r\n    AccountDisplayName,\r\n    GroupMembership,\r\n    AssignedRoles,\r\n    Department,\r\n    JobTitle,\r\n    Manager,\r\n    UserType,\r\n    SourceSystem\r\n| mv-expand AssignedRoles\r\n| project tostring(AssignedRoles)\r\n| sort by AssignedRoles asc ",
+              "size": 1,
+              "showAnalytics": true,
+              "title": "Assigned AAD Roles for User: {entityIdentifier}",
+              "noDataMessage": "No Assigned Roles Detected",
+              "timeContext": {
+                "durationMs": 2592000000
+              },
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "labelSettings": [
+                  {
+                    "columnId": "AssignedRoles",
+                    "label": "Assigned AAD Roles"
+                  }
+                ]
+              }
+            },
+            "customWidth": "17",
+            "name": "query - 8 - Copy",
+            "styleSettings": {
+              "showBorder": true
+            }
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "Behavior Events are generated by the User Entity Behavior Analytics feature in Azure Sentinel\r\n- This feature needs to be enabled for infomration to populate\r\n- This table will not show all Behavior events of an entity, only events that are tracked by Sentinels Behavior analytics. Events from custom or non-standard log sources will not be shown here. \r\n- IP locations may not be accurate ",
+              "style": "info"
+            },
+            "conditionalVisibility": {
+              "parameterName": "EnableHelp",
+              "comparison": "isEqualTo",
+              "value": "Enabled"
+            },
+            "name": "text - 5"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "BehaviorAnalytics\r\n| where UserName startswith '{entityIdentifier}' or UserName endswith '{entityIdentifier}' or UserPrincipalName startswith '{entityIdentifier}' \r\n| summarize EventCount = count(), LastEvent = max(TimeGenerated) by ActivityType, ActionType, UserName, UserPrincipalName, EventSource, SourceIPAddress, SourceIPLocation, SourceDevice, DestinationIPAddress, DestinationIPLocation, DestinationDevice\r\n| extend UserName = tolower(UserName)\r\n| extend UserPrincipalName = tolower(UserPrincipalName)\r\n| project EventCount, LastEvent, ActivityType, ActionType, UserName, UserPrincipalName, EventSource, SourceIPAddress, SourceIPLocation, SourceDevice, DestinationIPAddress, DestinationIPLocation, DestinationDevice\r\n| sort by LastEvent",
+              "size": 0,
+              "showAnalytics": true,
+              "title": "Behavior Events for {entityType}: {entityIdentifier}",
+              "timeContext": {
+                "durationMs": 604800000
+              },
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "EventCount",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "blue"
+                    }
+                  },
+                  {
+                    "columnMatch": "ActivityType",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "categorical"
+                    }
+                  },
+                  {
+                    "columnMatch": "ActionType",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "20ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "UserName",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "{entityIdentifier}",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "UserPrincipalName",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "startsWith",
+                          "thresholdValue": "{entityIdentifier}",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "customWidth": "75",
+            "conditionalVisibility": {
+              "parameterName": "entityType",
+              "comparison": "isEqualTo",
+              "value": "account"
+            },
+            "name": "query - 6",
+            "styleSettings": {
+              "maxWidth": "40",
+              "showBorder": true
+            }
+          }
+        ],
+        "exportParameters": true
+      },
+      "conditionalVisibility": {
+        "parameterName": "entityType",
+        "comparison": "isEqualTo",
+        "value": "account"
+      },
+      "name": "Account Entity Information",
+      "styleSettings": {
+        "showBorder": true
+      }
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "title": "IP Entity Information: {entityIdentifier}",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "Behavior Events are generated by the User Entity behavior Analytics feature in Azure Sentinel\r\n\r\n- This feature needs to be enabled for infomration to populate\r\n- This table will not show all Behavior events of an entity, only events that are tracked by Sentinels behavior analytics. Events from custom or non-standard log sources will not be shown here.\r\n- IP locations may not be accurate\r\n\r\nComputer Agents / Heartbeats shows if any installed agents are reporting from the public IP. \r\n- This will only show if a public IP is selected. \r\n- This includes the OMS and MMA agents for Log Analytics.\r\n- Microsoft Defender for Endpoint agents will also show if device info events are being ingested into Azure Sentinel. ",
+              "style": "info"
+            },
+            "conditionalVisibility": {
+              "parameterName": "EnableHelp",
+              "comparison": "isEqualTo",
+              "value": "Enabled"
+            },
+            "name": "text - 2"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "BehaviorAnalytics\r\n| where SourceIPAddress == '{entityIdentifier}' or DestinationIPAddress == '{entityIdentifier}'\r\n| summarize count(), max(TimeGenerated)\r\n    by\r\n    ActivityType,\r\n    ActionType,\r\n    UserName,\r\n    UserPrincipalName,\r\n    EventSource,\r\n    SourceIPAddress,\r\n    SourceIPLocation,\r\n    SourceDevice,\r\n    DestinationIPAddress,\r\n    DestinationIPLocation, \r\n    DestinationDevice\r\n| project\r\n    EventCount = count_,\r\n    LastEvent = max_TimeGenerated,\r\n    ActivityType,\r\n    ActionType,\r\n    UserName,\r\n    UserPrincipalName,\r\n    EventSource,\r\n    SourceIPAddress,\r\n    SourceIPLocation,\r\n    SourceDevice,\r\n    DestinationIPAddress,\r\n    DestinationIPLocation,\r\n    DestinationDevice\r\n| sort by LastEvent",
+              "size": 0,
+              "showAnalytics": true,
+              "title": "Behavior Events for {entityType}: {entityIdentifier}",
+              "timeContext": {
+                "durationMs": 604800000
+              },
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "EventCount",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "blue"
+                    }
+                  },
+                  {
+                    "columnMatch": "ActivityType",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "categorical"
+                    }
+                  },
+                  {
+                    "columnMatch": "ActionType",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "20ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "UserName",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "{entityIdentifier}",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "UserPrincipalName",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "{entityIdentifier}",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "SourceIPAddress",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "{entityIdentifier}",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "gray",
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "SourceDevice",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "{entityIdentifier}",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "DestinationIPAddress",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "{entityIdentifier}",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "DestinationDevice",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "{entityIdentifier}",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "customWidth": "75",
+            "conditionalVisibility": {
+              "parameterName": "entityType",
+              "comparison": "isEqualTo",
+              "value": "ip"
+            },
+            "name": "query - 5",
+            "styleSettings": {
+              "maxWidth": "40",
+              "showBorder": true
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let LAAgent = \r\nHeartbeat\r\n| where ComputerIP == '{entityIdentifier}'\r\n| summarize ['Last Seen'] = max(TimeGenerated) by Computer, ComputerIP, ComputerEnvironment\r\n| extend ['Heartbeat Source'] = 'Log Analytics Agent (OMS or AMA)';\r\nlet DfEAgent =\r\nDeviceInfo\r\n| where PublicIP == '{entityIdentifier}'\r\n| summarize ['Last Seen'] = max(TimeGenerated) by DeviceName, PublicIP\r\n| project-rename Computer = DeviceName, ComputerIP = PublicIP\r\n| extend ['Heartbeat Source'] = 'Microsoft Defender for Endpoint';\r\nunion LAAgent, DfEAgent\r\n| project-reorder ['Last Seen'], Computer, ComputerIP, ['Heartbeat Source'], ComputerEnvironment",
+              "size": 0,
+              "showAnalytics": true,
+              "title": "Computer Agents / Heartbeats at Public IP: {entityIdentifier}",
+              "noDataMessage": "No computers with Log Analytics agents detected at IP",
+              "timeContext": {
+                "durationMs": 604800000
+              },
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "filter": true
+              }
+            },
+            "customWidth": "30",
+            "conditionalVisibility": {
+              "parameterName": "IPType",
+              "comparison": "isEqualTo",
+              "value": "Public"
+            },
+            "name": "query - 1",
+            "styleSettings": {
+              "showBorder": true
+            }
+          }
+        ],
+        "exportParameters": true
+      },
+      "conditionalVisibility": {
+        "parameterName": "entityType",
+        "comparison": "isEqualTo",
+        "value": "ip"
+      },
+      "name": "IP Entity Information",
+      "styleSettings": {
+        "showBorder": true
+      }
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "title": "IP Entity Information: {entityIdentifier}",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "BehaviorAnalytics\r\n| where SourceDevice startswith '{entityIdentifier}' or DestinationDevice startswith '{entityIdentifier}'\r\n| summarize count(), max(TimeGenerated)\r\n    by\r\n    ActivityType,\r\n    ActionType,\r\n    UserName,\r\n    UserPrincipalName,\r\n    EventSource,\r\n    SourceIPAddress,\r\n    SourceIPLocation,\r\n    SourceDevice,\r\n    DestinationIPAddress,\r\n    DestinationIPLocation,\r\n    DestinationDevice\r\n| project\r\n    EventCount = count_,\r\n    LastEvent = max_TimeGenerated,\r\n    ActivityType,\r\n    ActionType,\r\n    UserName,\r\n    UserPrincipalName,\r\n    EventSource,\r\n    SourceIPAddress,\r\n    SourceIPLocation,\r\n    SourceDevice,\r\n    DestinationIPAddress,\r\n    DestinationIPLocation,\r\n    DestinationDevice\r\n| sort by LastEvent",
+              "size": 0,
+              "showAnalytics": true,
+              "title": "Behavior Events for {entityType}: {entityIdentifier}",
+              "timeContext": {
+                "durationMs": 604800000
+              },
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "EventCount",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "blue"
+                    }
+                  },
+                  {
+                    "columnMatch": "ActivityType",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "palette": "categorical"
+                    }
+                  },
+                  {
+                    "columnMatch": "ActionType",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "20ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "SourceDevice",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "{entityIdentifier}",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "DestinationDevice",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "{entityIdentifier}",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "customWidth": "70",
+            "name": "query - 5 - Copy",
+            "styleSettings": {
+              "maxWidth": "40",
+              "showBorder": true
+            }
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "entityType",
+        "comparison": "isEqualTo",
+        "value": "host"
+      },
+      "name": "Host Entity Information"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "Version: 1.01 Last update: 2022-01-13",
+        "style": "info"
+      },
+      "name": "text - 5"
+    }
+  ],
+  "fallbackResourceIds": [
+    "/subscriptions/d0aacf0c-a56b-4994-890b-3db31f0f71b5/resourcegroups/cf-visualstudio-lighthouse-sentinel/providers/microsoft.operationalinsights/workspaces/cf-managedsentinel-visualstudio-sentinel"
+  ],
+  "fromTemplateId": "sentinel-UserWorkbook",
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}
